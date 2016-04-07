@@ -492,11 +492,14 @@ done
 
 echo "Building original kernel"
 ./scripts/setlocalversion --save-scmversion || die
-make mrproper >> "$LOGFILE" 2>&1 || die
-CROSS_COMPILE="$TOOLSDIR/kpatch-gcc " make "-j$CPUS" $TARGETS "O=$OBJDIR" >> "$LOGFILE" 2>&1 || die
+make mrproper 2>&1 | \
+	( ( [[ "$DEBUG" -eq 1 ]] && tee -a "$LOGFILE" ) || cat >> "$LOGFILE" ) || die
+CROSS_COMPILE="$TOOLSDIR/kpatch-gcc " make "-j$CPUS" $TARGETS "O=$OBJDIR" 2>&1 | \
+	( ( [[ "$DEBUG" -eq 1 ]] && tee -a "$LOGFILE" ) || cat >> "$LOGFILE" ) || die
 
 echo "Building patched kernel"
-patch -N -p1 < "$APPLIEDPATCHFILE" >> "$LOGFILE" 2>&1 || die
+patch -N -p1 < "$APPLIEDPATCHFILE" 2>&1 | \
+	( ( [[ "$DEBUG" -eq 1 ]] && tee -a "$LOGFILE" ) || cat >> "$LOGFILE" ) || die
 mkdir -p "$TEMPDIR/orig" "$TEMPDIR/patched"
 export TEMPDIR
 # TODO: remove custom LDFLAGS and ugly "undefined reference" grep when core
@@ -504,7 +507,8 @@ export TEMPDIR
 CROSS_COMPILE="$TOOLSDIR/kpatch-gcc " \
 	LDFLAGS_vmlinux="--warn-unresolved-symbols" \
 	KBUILD_MODPOST_WARN=1 \
-	make "-j$CPUS" $TARGETS "O=$OBJDIR"  >> "$LOGFILE" 2>&1 || die
+	make "-j$CPUS" $TARGETS "O=$OBJDIR" 2>&1 | \
+	( ( [[ "$DEBUG" -eq 1 ]] && tee -a "$LOGFILE" ) || cat >> "$LOGFILE" ) || die
 [[ "${PIPESTATUS[0]}" -eq 0 ]] || die
 grep -q "undefined reference" "$LOGFILE" | grep -qv kpatch_shadow && die
 grep -q "undefined!" "$LOGFILE" |grep -qv kpatch_shadow && die
